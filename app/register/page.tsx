@@ -1,14 +1,18 @@
 // app/register/page.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import Link from 'next/link';
+import { AuthContext } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 
 export default function RegisterPage() {
+  const auth = useContext(AuthContext);
+  const signUp = auth?.signUp;
+
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,7 +24,9 @@ export default function RegisterPage() {
     password?: string;
     confirmPassword?: string;
   }>({});
+  const [authError, setAuthError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const validate = () => {
     const errs: {
@@ -62,15 +68,36 @@ export default function RegisterPage() {
     return errs;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAuthError(null);
+    setSuccess(false);
+
     const errs = validate();
     setErrors(errs);
 
     if (Object.keys(errs).length === 0) {
-      setSuccess(true);
-    } else {
-      setSuccess(false);
+      if (!signUp) return;
+      setIsSubmitting(true);
+      try {
+        const { error } = await signUp(email.trim(), password);
+        if (error) {
+          setAuthError(error.message);
+          setSuccess(false);
+        } else {
+          setSuccess(true);
+          setAuthError(null);
+        }
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+          setAuthError(err.message);
+        } else {
+          setAuthError('An unexpected error occurred');
+        }
+        setSuccess(false);
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -87,10 +114,23 @@ export default function RegisterPage() {
         </CardHeader>
 
         <CardContent className="flex flex-col gap-5 pb-8">
+          {/* Auth Error Banner */}
+          {authError && (
+            <div
+              data-testid="error-auth"
+              className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-center text-sm font-semibold text-red-600"
+            >
+              {authError}
+            </div>
+          )}
+
           {/* Success banner */}
           {success && (
-            <div data-testid="form-success" className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-center text-sm font-semibold text-green-700">
-              Registration successful (demo)
+            <div
+              data-testid="form-success"
+              className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-center text-sm font-semibold text-green-700"
+            >
+              Registration successful
             </div>
           )}
 
@@ -110,6 +150,9 @@ export default function RegisterPage() {
                     const newErrs = { ...errors };
                     delete newErrs.name;
                     setErrors(newErrs);
+                  }
+                  if (authError) {
+                    setAuthError(null);
                   }
                 }}
                 placeholder="John Doe"
@@ -137,6 +180,9 @@ export default function RegisterPage() {
                     delete newErrs.email;
                     setErrors(newErrs);
                   }
+                  if (authError) {
+                    setAuthError(null);
+                  }
                 }}
                 placeholder="name@example.com"
                 className={`h-11 rounded-xl px-4 text-base ${errors.email ? 'border-red-500 bg-red-50/50 focus-visible:border-red-500 focus-visible:ring-red-500/20' : ''}`}
@@ -162,6 +208,9 @@ export default function RegisterPage() {
                     const newErrs = { ...errors };
                     delete newErrs.password;
                     setErrors(newErrs);
+                  }
+                  if (authError) {
+                    setAuthError(null);
                   }
                 }}
                 placeholder="At least 6 characters"
@@ -189,6 +238,9 @@ export default function RegisterPage() {
                     delete newErrs.confirmPassword;
                     setErrors(newErrs);
                   }
+                  if (authError) {
+                    setAuthError(null);
+                  }
                 }}
                 placeholder="Re-type your password"
                 className={`h-11 rounded-xl px-4 text-base ${errors.confirmPassword ? 'border-red-500 bg-red-50/50 focus-visible:border-red-500 focus-visible:ring-red-500/20' : ''}`}
@@ -200,8 +252,14 @@ export default function RegisterPage() {
               )}
             </div>
 
-            <Button data-testid="register-submit" type="submit" size="lg" className="w-full h-12 rounded-xl text-base font-bold bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-md shadow-blue-600/35 hover:shadow-lg hover:shadow-blue-600/45 hover:-translate-y-px active:translate-y-0 transition-all mt-1">
-              Register
+            <Button
+              data-testid="register-submit"
+              type="submit"
+              size="lg"
+              disabled={isSubmitting}
+              className="w-full h-12 rounded-xl text-base font-bold bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-md shadow-blue-600/35 hover:shadow-lg hover:shadow-blue-600/45 hover:-translate-y-px active:translate-y-0 transition-all mt-1 cursor-pointer"
+            >
+              {isSubmitting ? 'Registering...' : 'Register'}
             </Button>
           </form>
 

@@ -1,18 +1,25 @@
 // app/login/page.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { AuthContext } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 
 export default function LoginPage() {
+  const router = useRouter();
+  const auth = useContext(AuthContext);
+  const signIn = auth?.signIn;
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
-  const [success, setSuccess] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const validate = () => {
     const errs: { email?: string; password?: string } = {};
@@ -35,15 +42,32 @@ export default function LoginPage() {
     return errs;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAuthError(null);
+
     const errs = validate();
     setErrors(errs);
 
     if (Object.keys(errs).length === 0) {
-      setSuccess(true);
-    } else {
-      setSuccess(false);
+      if (!signIn) return;
+      setIsSubmitting(true);
+      try {
+        const { error } = await signIn(email.trim(), password);
+        if (error) {
+          setAuthError(error.message);
+        } else {
+          router.push('/');
+        }
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+          setAuthError(err.message);
+        } else {
+          setAuthError('An unexpected error occurred');
+        }
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -60,10 +84,13 @@ export default function LoginPage() {
         </CardHeader>
 
         <CardContent className="flex flex-col gap-5 pb-8">
-          {/* Success banner */}
-          {success && (
-            <div data-testid="form-success" className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-center text-sm font-semibold text-green-700">
-              Login successful (demo)
+          {/* Auth error banner */}
+          {authError && (
+            <div
+              data-testid="error-auth"
+              className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-center text-sm font-semibold text-red-600"
+            >
+              {authError}
             </div>
           )}
 
@@ -83,6 +110,9 @@ export default function LoginPage() {
                     const newErrs = { ...errors };
                     delete newErrs.email;
                     setErrors(newErrs);
+                  }
+                  if (authError) {
+                    setAuthError(null);
                   }
                 }}
                 placeholder="name@example.com"
@@ -110,6 +140,9 @@ export default function LoginPage() {
                     delete newErrs.password;
                     setErrors(newErrs);
                   }
+                  if (authError) {
+                    setAuthError(null);
+                  }
                 }}
                 placeholder="••••••••"
                 className={`h-11 rounded-xl px-4 text-base ${errors.password ? 'border-red-500 bg-red-50/50 focus-visible:border-red-500 focus-visible:ring-red-500/20' : ''}`}
@@ -132,8 +165,14 @@ export default function LoginPage() {
               </a>
             </div>
 
-            <Button data-testid="login-submit" type="submit" size="lg" className="w-full h-12 rounded-xl text-base font-bold bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-md shadow-blue-600/35 hover:shadow-lg hover:shadow-blue-600/45 hover:-translate-y-px active:translate-y-0 transition-all mt-1">
-              Sign In
+            <Button
+              data-testid="login-submit"
+              type="submit"
+              size="lg"
+              disabled={isSubmitting}
+              className="w-full h-12 rounded-xl text-base font-bold bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-md shadow-blue-600/35 hover:shadow-lg hover:shadow-blue-600/45 hover:-translate-y-px active:translate-y-0 transition-all mt-1 cursor-pointer"
+            >
+              {isSubmitting ? 'Signing In...' : 'Sign In'}
             </Button>
           </form>
 
