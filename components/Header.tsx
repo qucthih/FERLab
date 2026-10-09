@@ -3,11 +3,13 @@
 import React, { useContext } from 'react';
 import Link from 'next/link';
 import { AuthContext } from '@/contexts/AuthContext';
+import { useFavorites } from '@/contexts/FavoritesContext';
 
 export function Header() {
   const auth = useContext(AuthContext);
   const user = auth?.user;
   const signOut = auth?.signOut;
+  const { favorites } = useFavorites();
 
   const handleLogout = async () => {
     if (signOut) {
@@ -29,6 +31,19 @@ export function Header() {
 
         {user ? (
           <div className="flex items-center gap-4">
+            <Link
+              href="/favorites"
+              data-testid="link-favorites"
+              className="inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium text-foreground no-underline hover:bg-muted transition-colors"
+            >
+              <span>Favorites</span>
+              <span
+                data-testid="favorites-count"
+                className="inline-flex items-center justify-center rounded-full bg-blue-600 px-2 py-0.5 text-xs font-bold text-white leading-none min-w-[20px]"
+              >
+                {favorites.length}
+              </span>
+            </Link>
             <Link
               href="/account"
               className="inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium text-foreground no-underline hover:bg-muted transition-colors"
